@@ -1,0 +1,18 @@
+[project]
+name = "trakt-connector"
+version = "0.1.0"
+description = "M1 auth spine for the Trakt.tv Muse connector"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "httpx>=0.27",
+  "cryptography>=42",
+  "pydantic>=2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "respx>=0.21"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
