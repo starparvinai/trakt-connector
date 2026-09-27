@@ -156,6 +156,27 @@ def test_stats_resolves_username_then_summarizes(tmp_path):
     assert out["episodes_minutes"] == 18000
 
 
+def test_stats_204_means_fresh_account(tmp_path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/users/settings":
+            return httpx.Response(200, json={"user": {"username": "parvin"}})
+        return httpx.Response(204)
+
+    s = _settings(db_path=str(tmp_path / "t.db"))
+    store = TokenStore(s.db_path, s.token_encryption_key)
+    store.save_tokens("u1", "access", "refresh", _future_iso())
+    client = TraktClient(s, store, httpx.Client(transport=httpx.MockTransport(handler)))
+
+    out = read_tools.stats(client, "u1")
+    assert out == {
+        "movies_watched": 0,
+        "movies_minutes": 0,
+        "shows_watched": 0,
+        "episodes_watched": 0,
+        "episodes_minutes": 0,
+    }
+
+
 def test_watchlist_keeps_listed_at(tmp_path):
     client = _client_for(
         {

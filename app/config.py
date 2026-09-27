@@ -15,6 +15,7 @@ class Settings:
     token_url: str = "https://api.trakt.tv/oauth/token"
     api_base: str = "https://api.trakt.tv"
     db_path: str = "./trakt_tokens.db"
+    oauth_state_secret: str = ""
 
 
 def get_settings() -> Settings:
@@ -32,4 +33,5 @@ def get_settings() -> Settings:
         ),
         api_base=os.environ.get("TRAKT_API_BASE", "https://api.trakt.tv"),
         db_path=os.environ.get("TRAKT_TOKEN_DB", "./trakt_tokens.db"),
+        oauth_state_secret=os.environ.get("OAUTH_STATE_SECRET", ""),
     )

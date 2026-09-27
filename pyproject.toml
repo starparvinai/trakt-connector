@@ -9,6 +9,7 @@ dependencies = [
   "httpx>=0.27",
   "cryptography>=42",
   "pydantic>=2",
+  "itsdangerous>=2",
 ]
 
 [project.optional-dependencies]

@@ -1,6 +1,7 @@
 """Trakt API client with header injection, 401->refresh->retry, 429 backoff."""
 from __future__ import annotations
 
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -16,6 +17,12 @@ class VIPRequired(Exception):
 
 
 class TraktClient:
+    # Process-wide per-user refresh locks. Trakt refresh tokens are single-use:
+    # two concurrent refreshes for one user would kill the pair mid-flight.
+    # (Multi-worker deployments need a distributed lock, e.g. Redis, here.)
+    _refresh_locks: dict[str, threading.Lock] = {}
+    _locks_guard = threading.Lock()
+
     def __init__(
         self,
         settings: Settings,
@@ -45,13 +52,26 @@ class TraktClient:
             exp = exp.replace(tzinfo=timezone.utc)
         return datetime.now(timezone.utc) >= exp - timedelta(seconds=skew_seconds)
 
+    @classmethod
+    def _lock_for(cls, user_id: str) -> threading.Lock:
+        with cls._locks_guard:
+            return cls._refresh_locks.setdefault(user_id, threading.Lock())
+
     def get_valid_access_token(self, user_id: str) -> str:
         tokens = self.store.get_tokens(user_id)
         if not tokens:
             raise ReauthRequired("No Trakt tokens stored — authorize first.")
-        if self._is_expired(tokens["expires_at"]):
-            tokens = self._rotate(user_id, tokens["refresh_token"])
-        return tokens["access_token"]
+        if not self._is_expired(tokens["expires_at"]):
+            return tokens["access_token"]
+        # Double-checked locking: re-read inside the lock; another thread may
+        # have already rotated while we waited.
+        with self._lock_for(user_id):
+            tokens = self.store.get_tokens(user_id)
+            if not tokens:
+                raise ReauthRequired("No Trakt tokens stored — authorize first.")
+            if not self._is_expired(tokens["expires_at"]):
+                return tokens["access_token"]
+            return self._rotate(user_id, tokens["refresh_token"])["access_token"]
 
     def _rotate(self, user_id: str, refresh_token: str) -> dict:
         """Refresh and atomically replace the stored pair (single-use)."""

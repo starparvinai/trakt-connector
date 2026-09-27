@@ -6,6 +6,3 @@ __pycache__/
 *.db
 *.sqlite3
 .DS_Store
-*.db-shm
-*.db-wal
-*.db-journal
